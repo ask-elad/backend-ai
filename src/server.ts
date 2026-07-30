@@ -18,5 +18,5 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Task API running at http://localhost:${PORT}`);
+  console.log(`Task API is running at http://localhost:${PORT}`);
 });
