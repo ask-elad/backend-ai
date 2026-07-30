@@ -66,6 +66,52 @@ app.post('/tasks', (req: Request, res: Response) => {
   res.status(201).json(newTask);
 });
 
+app.put('/tasks/:id', (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const task = tasks.find((t) => t.id === id);
+
+  if (!task) {
+    res.status(404).json({ error: `Task ${id} not found` });
+    return;
+  }
+
+  const { title, done } = req.body;
+
+  if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) {
+    res.status(400).json({ error: 'title must be a non-empty string' });
+    return;
+  }
+
+  if (done !== undefined && typeof done !== 'boolean') {
+    res.status(400).json({ error: 'done must be a boolean' });
+    return;
+  }
+
+  if (title === undefined && done === undefined) {
+    res.status(400).json({ error: 'request body must include title and/or done' });
+    return;
+  }
+
+  if (title !== undefined) task.title = title.trim();
+  if (done !== undefined) task.done = done;
+
+  res.json(task);
+});
+
+app.delete('/tasks/:id', (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const index = tasks.findIndex((t) => t.id === id);
+
+  if (index === -1) {
+    res.status(404).json({ error: `Task ${id} not found` });
+    return;
+  }
+
+  tasks.splice(index, 1);
+
+  res.status(204).send();
+});
+
 app.listen(PORT, () => {
   console.log(`Task API running at http://localhost:${PORT}`);
 });
