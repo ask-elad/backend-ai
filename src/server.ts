@@ -1,4 +1,6 @@
 import express, { Request, Response } from 'express';
+import swaggerUi from 'swagger-ui-express';
+import openapiDocument from './openapi.json';
 
 const app = express();
 const PORT = 3000;
@@ -28,6 +30,8 @@ app.get('/', (req: Request, res: Response) => {
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
+
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument));
 
 app.get('/tasks', (req: Request, res: Response) => {
   res.json(tasks);
