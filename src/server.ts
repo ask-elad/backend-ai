@@ -24,12 +24,6 @@ function serializeTask(row: TaskRow): Task {
   return { id: row.id, title: row.title, done: !!row.done };
 }
 
-const tasks: Task[] = [
-  { id: 1, title: 'Learn Express', done: false },
-  { id: 2, title: 'Build Task API', done: false },
-  { id: 3, title: 'Write tests', done: true },
-];
-
 app.get('/', (req: Request, res: Response) => {
   res.json({
     name: 'Task API',
@@ -78,9 +72,9 @@ app.post('/tasks', (req: Request, res: Response) => {
 
 app.put('/tasks/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const task = tasks.find((t) => t.id === id);
+  const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | undefined;
 
-  if (!task) {
+  if (!existing) {
     res.status(404).json({ error: `Task ${id} not found` });
     return;
   }
@@ -102,22 +96,23 @@ app.put('/tasks/:id', (req: Request, res: Response) => {
     return;
   }
 
-  if (title !== undefined) task.title = title.trim();
-  if (done !== undefined) task.done = done;
+  const newTitle = title !== undefined ? title.trim() : existing.title;
+  const newDone = done !== undefined ? (done ? 1 : 0) : existing.done;
 
-  res.json(task);
+  db.prepare('UPDATE tasks SET title = ?, done = ? WHERE id = ?').run(newTitle, newDone, id);
+  const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow;
+
+  res.json(serializeTask(updated));
 });
 
 app.delete('/tasks/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const index = tasks.findIndex((t) => t.id === id);
+  const result = db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
 
-  if (index === -1) {
+  if (result.changes === 0) {
     res.status(404).json({ error: `Task ${id} not found` });
     return;
   }
-
-  tasks.splice(index, 1);
 
   res.status(204).send();
 });
