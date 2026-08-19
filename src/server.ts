@@ -69,17 +69,11 @@ app.post('/tasks', (req: Request, res: Response) => {
     return;
   }
 
-  const nextId = tasks.length > 0 ? Math.max(...tasks.map((t) => t.id)) + 1 : 1;
+  const insert = db.prepare('INSERT INTO tasks (title, done) VALUES (?, 0)');
+  const result = insert.run(title.trim());
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid) as TaskRow;
 
-  const newTask: Task = {
-    id: nextId,
-    title: title.trim(),
-    done: false,
-  };
-
-  tasks.push(newTask);
-
-  res.status(201).json(newTask);
+  res.status(201).json(serializeTask(row));
 });
 
 app.put('/tasks/:id', (req: Request, res: Response) => {
