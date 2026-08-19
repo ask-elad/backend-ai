@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import openapiDocument from './openapi.json';
-import './db/db';
+import db from './db/db';
 
 const app = express();
 const PORT = 3000;
@@ -12,6 +12,16 @@ interface Task {
   id: number;
   title: string;
   done: boolean;
+}
+
+interface TaskRow {
+  id: number;
+  title: string;
+  done: number;
+}
+
+function serializeTask(row: TaskRow): Task {
+  return { id: row.id, title: row.title, done: !!row.done };
 }
 
 const tasks: Task[] = [
@@ -35,19 +45,20 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument));
 
 app.get('/tasks', (req: Request, res: Response) => {
-  res.json(tasks);
+  const rows = db.prepare('SELECT * FROM tasks').all() as TaskRow[];
+  res.json(rows.map(serializeTask));
 });
 
 app.get('/tasks/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const task = tasks.find((t) => t.id === id);
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | undefined;
 
-  if (!task) {
+  if (!row) {
     res.status(404).json({ error: `Task ${id} not found` });
     return;
   }
 
-  res.json(task);
+  res.json(serializeTask(row));
 });
 
 app.post('/tasks', (req: Request, res: Response) => {
