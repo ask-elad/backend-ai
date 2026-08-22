@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: flyrank-postgres
+    environment:
+      POSTGRES_USER: flyrank
+      POSTGRES_PASSWORD: flyrank
+      POSTGRES_DB: flyrank
+    ports:
+      - "5432:5432"
+    volumes:
+      - flyrank-postgres-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flyrank -d flyrank"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: flyrank-app
+    environment:
+      DATABASE_URL: postgresql://flyrank:flyrank@postgres:5432/flyrank
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  flyrank-postgres-data:
+    external: true
