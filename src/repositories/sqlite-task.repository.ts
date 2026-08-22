@@ -13,24 +13,24 @@ function serializeTask(row: TaskRow): Task {
 }
 
 export class SqliteTaskRepository implements TaskRepository {
-  findAll(): Task[] {
+  async findAll(): Promise<Task[]> {
     const rows = db.prepare('SELECT * FROM tasks').all() as TaskRow[];
     return rows.map(serializeTask);
   }
 
-  findById(id: number): Task | undefined {
+  async findById(id: number): Promise<Task | undefined> {
     const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | undefined;
     return row ? serializeTask(row) : undefined;
   }
 
-  create(title: string): Task {
+  async create(title: string): Promise<Task> {
     const insert = db.prepare('INSERT INTO tasks (title, done) VALUES (?, 0)');
     const result = insert.run(title);
     const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid) as TaskRow;
     return serializeTask(row);
   }
 
-  update(id: number, changes: { title?: string; done?: boolean }): Task | undefined {
+  async update(id: number, changes: { title?: string; done?: boolean }): Promise<Task | undefined> {
     const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | undefined;
     if (!existing) return undefined;
 
@@ -42,7 +42,7 @@ export class SqliteTaskRepository implements TaskRepository {
     return serializeTask(updated);
   }
 
-  delete(id: number): boolean {
+  async delete(id: number): Promise<boolean> {
     const result = db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
     return result.changes > 0;
   }

@@ -1,15 +1,16 @@
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import openapiDocument from './openapi.json';
-import { SqliteTaskRepository } from './repositories/sqlite-task.repository';
+import { PostgresTaskRepository } from './repositories/postgres-task.repository';
 import { TaskService } from './services/task.service';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 app.use(express.json());
 
-const taskService = new TaskService(new SqliteTaskRepository());
+const taskService = new TaskService(new PostgresTaskRepository());
 
 app.get('/', (req: Request, res: Response) => {
   res.json({
@@ -25,13 +26,13 @@ app.get('/health', (req: Request, res: Response) => {
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument));
 
-app.get('/tasks', (req: Request, res: Response) => {
-  res.json(taskService.getAll());
+app.get('/tasks', async (req: Request, res: Response) => {
+  res.json(await taskService.getAll());
 });
 
-app.get('/tasks/:id', (req: Request, res: Response) => {
+app.get('/tasks/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const task = taskService.getById(id);
+  const task = await taskService.getById(id);
 
   if (!task) {
     res.status(404).json({ error: `Task ${id} not found` });
@@ -41,7 +42,7 @@ app.get('/tasks/:id', (req: Request, res: Response) => {
   res.json(task);
 });
 
-app.post('/tasks', (req: Request, res: Response) => {
+app.post('/tasks', async (req: Request, res: Response) => {
   const { title } = req.body;
 
   if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -49,11 +50,11 @@ app.post('/tasks', (req: Request, res: Response) => {
     return;
   }
 
-  const newTask = taskService.create(title.trim());
+  const newTask = await taskService.create(title.trim());
   res.status(201).json(newTask);
 });
 
-app.put('/tasks/:id', (req: Request, res: Response) => {
+app.put('/tasks/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const { title, done } = req.body;
 
@@ -72,7 +73,7 @@ app.put('/tasks/:id', (req: Request, res: Response) => {
     return;
   }
 
-  const updated = taskService.update(id, {
+  const updated = await taskService.update(id, {
     title: title !== undefined ? title.trim() : undefined,
     done,
   });
@@ -85,9 +86,9 @@ app.put('/tasks/:id', (req: Request, res: Response) => {
   res.json(updated);
 });
 
-app.delete('/tasks/:id', (req: Request, res: Response) => {
+app.delete('/tasks/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const deleted = taskService.delete(id);
+  const deleted = await taskService.delete(id);
 
   if (!deleted) {
     res.status(404).json({ error: `Task ${id} not found` });

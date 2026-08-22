@@ -4,23 +4,23 @@ import { TaskRepository } from '../repositories/task-repository.interface';
 export class TaskService {
   constructor(private repository: TaskRepository) {}
 
-  getAll(): Task[] {
+  async getAll(): Promise<Task[]> {
     return this.repository.findAll();
   }
 
-  getById(id: number): Task | undefined {
+  async getById(id: number): Promise<Task | undefined> {
     return this.repository.findById(id);
   }
 
-  create(title: string): Task {
+  async create(title: string): Promise<Task> {
     return this.repository.create(title);
   }
 
-  update(id: number, changes: { title?: string; done?: boolean }): Task | undefined {
+  async update(id: number, changes: { title?: string; done?: boolean }): Promise<Task | undefined> {
     return this.repository.update(id, changes);
   }
 
-  delete(id: number): boolean {
+  async delete(id: number): Promise<boolean> {
     return this.repository.delete(id);
   }
 }
