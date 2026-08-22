@@ -1,28 +1,15 @@
 import express, { Request, Response } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import openapiDocument from './openapi.json';
-import db from './db/db';
+import { SqliteTaskRepository } from './repositories/sqlite-task.repository';
+import { TaskService } from './services/task.service';
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
 
-interface Task {
-  id: number;
-  title: string;
-  done: boolean;
-}
-
-interface TaskRow {
-  id: number;
-  title: string;
-  done: number;
-}
-
-function serializeTask(row: TaskRow): Task {
-  return { id: row.id, title: row.title, done: !!row.done };
-}
+const taskService = new TaskService(new SqliteTaskRepository());
 
 app.get('/', (req: Request, res: Response) => {
   res.json({
@@ -39,20 +26,19 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument));
 
 app.get('/tasks', (req: Request, res: Response) => {
-  const rows = db.prepare('SELECT * FROM tasks').all() as TaskRow[];
-  res.json(rows.map(serializeTask));
+  res.json(taskService.getAll());
 });
 
 app.get('/tasks/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | undefined;
+  const task = taskService.getById(id);
 
-  if (!row) {
+  if (!task) {
     res.status(404).json({ error: `Task ${id} not found` });
     return;
   }
 
-  res.json(serializeTask(row));
+  res.json(task);
 });
 
 app.post('/tasks', (req: Request, res: Response) => {
@@ -63,22 +49,12 @@ app.post('/tasks', (req: Request, res: Response) => {
     return;
   }
 
-  const insert = db.prepare('INSERT INTO tasks (title, done) VALUES (?, 0)');
-  const result = insert.run(title.trim());
-  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid) as TaskRow;
-
-  res.status(201).json(serializeTask(row));
+  const newTask = taskService.create(title.trim());
+  res.status(201).json(newTask);
 });
 
 app.put('/tasks/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | undefined;
-
-  if (!existing) {
-    res.status(404).json({ error: `Task ${id} not found` });
-    return;
-  }
-
   const { title, done } = req.body;
 
   if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) {
@@ -96,20 +72,24 @@ app.put('/tasks/:id', (req: Request, res: Response) => {
     return;
   }
 
-  const newTitle = title !== undefined ? title.trim() : existing.title;
-  const newDone = done !== undefined ? (done ? 1 : 0) : existing.done;
+  const updated = taskService.update(id, {
+    title: title !== undefined ? title.trim() : undefined,
+    done,
+  });
 
-  db.prepare('UPDATE tasks SET title = ?, done = ? WHERE id = ?').run(newTitle, newDone, id);
-  const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow;
+  if (!updated) {
+    res.status(404).json({ error: `Task ${id} not found` });
+    return;
+  }
 
-  res.json(serializeTask(updated));
+  res.json(updated);
 });
 
 app.delete('/tasks/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const result = db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+  const deleted = taskService.delete(id);
 
-  if (result.changes === 0) {
+  if (!deleted) {
     res.status(404).json({ error: `Task ${id} not found` });
     return;
   }
